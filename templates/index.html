@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vehicle Booking</title>
+<style>body{font-family:Arial;padding:15px;max-width:600px;margin:auto}input,select,button{width:100%;padding:12px;margin:8px 0;box-sizing:border-box}button{background:#25D366;color:white;border:none;font-size:16px}.msg{padding:10px;background:#e8ffe8;border:1px solid green;margin:10px 0}.wa{background:#25D366;color:white;padding:12px;display:block;text-align:center;text-decoration:none;margin-top:10px}</style>
+</head>
+<body>
+<h2>🚛 Book a Vehicle</h2>
+{% if message %}<div class="msg">{{message}}</div>{% endif %}
+{% if whatsapp_link %}<a class="wa" href="{{whatsapp_link}}" target="_blank">📲 Send WhatsApp Alert to Owner (+260963329816)</a>{% endif %}
+
+<form method="POST">
+<select name="vehicle_id" required>
+{% for v in vehicles %}<option value="{{v[0]}}">{{v[1]}} - K{{v[2]}}/day</option>{% endfor %}
+</select>
+<input name="customer" placeholder="Customer Name" required>
+<input name="cust_phone" placeholder="Customer Phone e.g. 097..." required>
+<label>From Date:</label><input type="date" name="start" required>
+<label>To Date:</label><input type="date" name="end" required>
+<button type="submit">Check & Book Now</button>
+</form>
+<br><a href="/admin">🔐 Admin Login</a>
+</body>
+</html>
