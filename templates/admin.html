@@ -2,13 +2,13 @@
 <html>
 <head><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:Arial;padding:10px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;font-size:13px}th{background:black;color:white}</style></head>
 <body>
-<h2>All Bookings - Total Income: &{{total_income}}</h2>
+<h2>All Bookings - Total Income: ${{total_income}}</h2>
 <a href="/logout">Logout</a> | <a href="/">Home</a><br><br>
 <table>
 <tr><th>Vehicle</th><th>Customer</th><th>Phone</th><th>From</th><th>To</th><th>Days</th><th>Total</th><th>Action</th></tr>
 {% for b in bookings %}
 <tr>
-<td>{{b[1]}} (&{{b[2]}}/d)</td><td>{{b[3]}}</td><td>{{b[4]}}</td><td>{{b[5]}}</td><td>{{b[6]}}</td><td>{{b[7]}}</td><td>&{{b[8]}}</td>
+<td>{{b[1]}} (${{b[2]}}/d)</td><td>{{b[3]}}</td><td>{{b[4]}}</td><td>{{b[5]}}</td><td>{{b[6]}}</td><td>{{b[7]}}</td><td>${{b[8]}}</td>
 <td><a href="/delete/{{b[0]}}" onclick="return confirm('Delete?')">Delete</a></td>
 </tr>
 {% endfor %}
