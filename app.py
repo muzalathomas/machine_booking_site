@@ -1,134 +1,116 @@
-from flask import Flask, render_template, request, session, redirect, url_for
-import sqlite3
-import os
+import os, sqlite3
+from flask import Flask, render_template, request, redirect, url_for, session
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "travis_secret_2024"
+app.secret_key = "travis123_secret"
 
-YOUR_PHONE = "260963329816"
-ADMIN_PASSWORD = "travis123"
+DB_PATH = os.path.join(os.path.dirname(__file__), "booking.db")
 
 VEHICLES_DATA = [
-    ("LB 02-MH47", 100),
-    ("LB 03-MH29", 100),
-    ("LB 04-MH41", 100),
-    ("LB 05-MH42", 100),
-    ("LB 16-MH63", 100),
-    ("LB 17-MH64", 100),
-    ("LB 18-MH65", 100),
-    ("T07-MH46", 100),
-    ("TA 08 05-MH37", 100),
-    ("TA 76-MH66", 100)
+    ("Toyota Hilux", 100),
+    ("Tipper Truck", 100),
+    ("Land Cruiser", 100),
+    ("Komatsu Loader", 100)
 ]
 
+OWNER_PHONE = "260963329816"
+ADMIN_PASSWORD = "travis123"
 
 def init_db():
-    conn = sqlite3.connect('booking.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('CREATE TABLE IF NOT EXISTS vehicles (id INTEGER PRIMARY KEY, name TEXT, price INTEGER)')
-    c.execute('CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY, vehicle_id INTEGER, customer TEXT, phone TEXT, start TEXT, end TEXT, total_price INTEGER, days INTEGER)')
-       c.execute("SELECT count(*) FROM vehicles")
+    c.execute("CREATE TABLE IF NOT EXISTS vehicles (id INTEGER PRIMARY KEY, name TEXT, price INTEGER)")
+    c.execute("CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY, vehicle_id INTEGER, vehicle_name TEXT, customer TEXT, cust_phone TEXT, start_date TEXT, end_date TEXT, days INTEGER, total INTEGER)")
+    c.execute("SELECT count(*) FROM vehicles")
     count = c.fetchone()[0]
     if count == 0:
         c.executemany("INSERT INTO vehicles (name, price) VALUES (?,?)", VEHICLES_DATA)
     else:
-        # FORCE UPDATE PRICES TO $100
         c.execute("DELETE FROM vehicles")
         c.executemany("INSERT INTO vehicles (name, price) VALUES (?,?)", VEHICLES_DATA)
     conn.commit()
-
-# THIS LINE FIXES RENDER - create DB on startup
-init_db()
-
-def is_available(vehicle_id, new_start, new_end):
-    conn = sqlite3.connect('booking.db')
-    c = conn.cursor()
-    c.execute("SELECT start, end FROM bookings WHERE vehicle_id=?", (vehicle_id,))
-    for s, e in c.fetchall():
-        if new_start < e and new_end > s:
-            conn.close()
-            return False, f"Booked from {s} to {e}"
     conn.close()
-    return True, "Available"
 
-def calc_days_price(start_str, end_str, price_per_day):
-    s = datetime.strptime(start_str, "%Y-%m-%d")
-    e = datetime.strptime(end_str, "%Y-%m-%d")
-    days = (e - s).days
-    if days < 1: days = 1
-    total = days * price_per_day
-    return days, total
+init_db()
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    conn = sqlite3.connect('booking.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    message = ""
-    whatsapp_link = ""
+    c.execute("SELECT * FROM vehicles")
+    vehicles = c.fetchall()
+    message = None
+    whatsapp_link = None
     if request.method == "POST":
-        vid = request.form["vehicle_id"]
+        v_id = int(request.form["vehicle_id"])
         customer = request.form["customer"]
         cust_phone = request.form["cust_phone"]
         start = request.form["start"]
         end = request.form["end"]
-        c.execute("SELECT name, price FROM vehicles WHERE id=?", (vid,))
-        row = c.fetchone()
-        if not row:
+        c.execute("SELECT * FROM vehicles WHERE id=?", (v_id,))
+        veh = c.fetchone()
+        if not veh:
             message = "Vehicle not found"
         else:
-            vname, vprice = row[0], row[1]
-            if start >= end:
-                message = "ERROR: End date must be after start date"
-            else:
-                ok, msg = is_available(vid, start, end)
-                if not ok:
-                    message = f"NOT AVAILABLE - {msg}"
+            try:
+                d1 = datetime.strptime(start, "%Y-%m-%d")
+                d2 = datetime.strptime(end, "%Y-%m-%d")
+                days = (d2 - d1).days + 1
+                if days <= 0:
+                    message = "End date must be after start date"
                 else:
-                    days, total = calc_days_price(start, end, vprice)
-                    c.execute("INSERT INTO bookings (vehicle_id, customer, phone, start, end, total_price, days) VALUES (?,?,?,?,?,?,?)", (vid, customer, cust_phone, start, end, total, days))
-                    conn.commit()
-                    message = f"SUCCESS! {vname} booked for {customer} - {days} day(s) = K{total}"
-                    text = f"NEW BOOKING!%0AVehicle: {vname}%0ACustomer: {customer} ({cust_phone})%0AFrom: {start} To: {end}%0A{days} days = K{total}"
-                    whatsapp_link = f"https://wa.me/{YOUR_PHONE}?text={text}"
-    c.execute("SELECT * FROM vehicles")
-    vehicles = c.fetchall()
+                    c.execute("SELECT * FROM bookings WHERE vehicle_id=? AND NOT (end_date <? OR start_date >?)", (v_id, start, end))
+                    if c.fetchone():
+                        message = f"Sorry, {veh[1]} already booked on those dates"
+                    else:
+                        total = days * veh[2]
+                        c.execute("INSERT INTO bookings (vehicle_id, vehicle_name, customer, cust_phone, start_date, end_date, days, total) VALUES (?,?,?,?,?,?,?,?)", (v_id, veh[1], customer, cust_phone, start, end, days, total))
+                        conn.commit()
+                        message = f"Booked! {veh[1]} for {days} days. Total: ${total}"
+                        wa_text = f"NEW BOOKING: {veh[1]} booked by {customer} ({cust_phone}) from {start} to {end}. Total ${total}"
+                        whatsapp_link = f"https://wa.me/{OWNER_PHONE}?text={wa_text.replace(' ', '%20')}"
+            except Exception as e:
+                message = f"Error: {e}"
     conn.close()
     return render_template("index.html", vehicles=vehicles, message=message, whatsapp_link=whatsapp_link)
 
 @app.route("/admin", methods=["GET", "POST"])
-def admin():
+def admin_login():
     if request.method == "POST":
         if request.form.get("password") == ADMIN_PASSWORD:
             session["admin"] = True
-        else:
-            return render_template("admin_login.html", error="Wrong password")
+            return redirect(url_for("admin"))
+    return render_template("admin_login.html")
+
+@app.route("/admin/dashboard")
+def admin():
     if not session.get("admin"):
-        return render_template("admin_login.html")
-    conn = sqlite3.connect('booking.db')
+        return redirect(url_for("admin_login"))
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT b.id, v.name, v.price, b.customer, b.phone, b.start, b.end, b.days, b.total_price FROM bookings b JOIN vehicles v ON b.vehicle_id=v.id ORDER BY b.start DESC")
+    c.execute("SELECT * FROM bookings ORDER BY id DESC")
     bookings = c.fetchall()
-    total_income = sum([b[8] for b in bookings]) if bookings else 0
+    c.execute("SELECT SUM(total) FROM bookings")
+    total_income = c.fetchone()[0] or 0
     conn.close()
     return render_template("admin.html", bookings=bookings, total_income=total_income)
 
-@app.route("/logout")
-def logout():
-    session.pop("admin", None)
-    return redirect(url_for("index"))
-
-@app.route("/delete/<int:bid>")
+@app.route("/admin/delete/<int:bid>")
 def delete_booking(bid):
     if not session.get("admin"):
-        return redirect(url_for("admin"))
-    conn = sqlite3.connect('booking.db')
+        return redirect(url_for("admin_login"))
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("DELETE FROM bookings WHERE id=?", (bid,))
     conn.commit()
     conn.close()
     return redirect(url_for("admin"))
 
+@app.route("/admin/logout")
+def logout():
+    session.pop("admin", None)
+    return redirect(url_for("admin_login"))
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
