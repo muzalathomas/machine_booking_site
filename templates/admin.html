@@ -8,7 +8,7 @@
 <tr><th>Vehicle</th><th>Customer</th><th>Phone</th><th>From</th><th>To</th><th>Days</th><th>Total</th><th>Action</th></tr>
 {% for b in bookings %}
 <tr>
-<td>{{b[1]}} (K{{b[2]}}/d)</td><td>{{b[3]}}</td><td>{{b[4]}}</td><td>{{b[5]}}</td><td>{{b[6]}}</td><td>{{b[7]}}</td><td>K{{b[8]}}</td>
+<td>{{b[1]}} (&{{b[2]}}/d)</td><td>{{b[3]}}</td><td>{{b[4]}}</td><td>{{b[5]}}</td><td>{{b[6]}}</td><td>{{b[7]}}</td><td>&{{b[8]}}</td>
 <td><a href="/delete/{{b[0]}}" onclick="return confirm('Delete?')">Delete</a></td>
 </tr>
 {% endfor %}
