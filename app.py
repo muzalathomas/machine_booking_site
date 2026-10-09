@@ -28,11 +28,15 @@ def init_db():
     c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS vehicles (id INTEGER PRIMARY KEY, name TEXT, price INTEGER)')
     c.execute('CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY, vehicle_id INTEGER, customer TEXT, phone TEXT, start TEXT, end TEXT, total_price INTEGER, days INTEGER)')
-    c.execute("SELECT count(*) FROM vehicles")
-    if c.fetchone()[0] == 0:
+       c.execute("SELECT count(*) FROM vehicles")
+    count = c.fetchone()[0]
+    if count == 0:
         c.executemany("INSERT INTO vehicles (name, price) VALUES (?,?)", VEHICLES_DATA)
-        conn.commit()
-    conn.close()
+    else:
+        # FORCE UPDATE PRICES TO $100
+        c.execute("DELETE FROM vehicles")
+        c.executemany("INSERT INTO vehicles (name, price) VALUES (?,?)", VEHICLES_DATA)
+    conn.commit()
 
 # THIS LINE FIXES RENDER - create DB on startup
 init_db()
