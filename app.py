@@ -8,11 +8,18 @@ app.secret_key = "travis123_secret"
 DB_PATH = os.path.join(os.path.dirname(__file__), "booking.db")
 
 VEHICLES_DATA = [
-    ("Toyota Hilux", 100),
-    ("Tipper Truck", 100),
-    ("Land Cruiser", 100),
-    ("Komatsu Loader", 100)
+    ("LB 02-MH47", 200),
+    ("LB 03-MH29", 200),
+    ("LB 04-MH41", 200),
+    ("LB 05-MH42", 200),
+    ("LB 16-MH63", 200),
+    ("LB 17-MH64", 200),
+    ("LB 18-MH65", 200),
+    ("T07-MH46", 200),
+    ("TA 08 05-MH37", 200),
+    ("TA 76-MH66", 200)
 ]
+
 
 OWNER_PHONE = "260963329816"
 ADMIN_PASSWORD = "travis123"
