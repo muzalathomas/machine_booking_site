@@ -8,18 +8,11 @@ app.secret_key = "travis123_secret"
 DB_PATH = os.path.join(os.path.dirname(__file__), "booking.db")
 
 VEHICLES_DATA = [
-    ("LB 02-MH47", 200),
-    ("LB 03-MH29", 200),
-    ("LB 04-MH41", 200),
-    ("LB 05-MH42", 200),
-    ("LB 16-MH63", 200),
-    ("LB 17-MH64", 200),
-    ("LB 18-MH65", 200),
-    ("T07-MH46", 200),
-    ("TA 08 05-MH37", 200),
-    ("TA 76-MH66", 200)
+    ("Toyota Hilux", 100),
+    ("Tipper Truck", 100),
+    ("Land Cruiser", 100),
+    ("Komatsu Loader", 100)
 ]
-
 
 OWNER_PHONE = "260963329816"
 ADMIN_PASSWORD = "travis123"
@@ -28,7 +21,16 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS vehicles (id INTEGER PRIMARY KEY, name TEXT, price INTEGER)")
-    c.execute("CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY, vehicle_id INTEGER, vehicle_name TEXT, customer TEXT, cust_phone TEXT, start_date TEXT, end_date TEXT, days INTEGER, total INTEGER)")
+    c.execute("CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY, vehicle_id INTEGER, vehicle_name TEXT, customer TEXT, cust_phone TEXT, start_date TEXT, end_date TEXT, hours INTEGER, total INTEGER)")
+    # Add hours column if old DB exists
+    try:
+        c.execute("ALTER TABLE bookings ADD COLUMN hours INTEGER")
+    except:
+        pass
+    try:
+        c.execute("ALTER TABLE bookings ADD COLUMN total INTEGER")
+    except:
+        pass
     c.execute("SELECT count(*) FROM vehicles")
     count = c.fetchone()[0]
     if count == 0:
@@ -61,21 +63,25 @@ def index():
             message = "Vehicle not found"
         else:
             try:
-                d1 = datetime.strptime(start, "%Y-%m-%d")
-                d2 = datetime.strptime(end, "%Y-%m-%d")
-                days = (d2 - d1).days + 1
-                if days <= 0:
-                    message = "End date must be after start date"
+                # Now using datetime-local: 2026-10-17T10:00
+                d1 = datetime.strptime(start, "%Y-%m-%dT%H:%M")
+                d2 = datetime.strptime(end, "%Y-%m-%dT%H:%M")
+                diff_seconds = (d2 - d1).total_seconds()
+                hours = int(diff_seconds // 3600)
+                if diff_seconds % 3600 > 0:
+                    hours += 1  # round up partial hour
+                if hours <= 0:
+                    message = "End time must be after start time"
                 else:
                     c.execute("SELECT * FROM bookings WHERE vehicle_id=? AND NOT (end_date <? OR start_date >?)", (v_id, start, end))
                     if c.fetchone():
-                        message = f"Sorry, {veh[1]} already booked on those dates"
+                        message = f"Sorry, {veh[1]} already booked on those hours"
                     else:
-                        total = days * veh[2]
-                        c.execute("INSERT INTO bookings (vehicle_id, vehicle_name, customer, cust_phone, start_date, end_date, days, total) VALUES (?,?,?,?,?,?,?,?)", (v_id, veh[1], customer, cust_phone, start, end, days, total))
+                        total = hours * veh[2]
+                        c.execute("INSERT INTO bookings (vehicle_id, vehicle_name, customer, cust_phone, start_date, end_date, hours, total) VALUES (?,?,?,?,?,?,?,?)", (v_id, veh[1], customer, cust_phone, start, end, hours, total))
                         conn.commit()
-                        message = f"Booked! {veh[1]} for {days} days. Total: ${total}"
-                        wa_text = f"NEW BOOKING: {veh[1]} booked by {customer} ({cust_phone}) from {start} to {end}. Total ${total}"
+                        message = f"Booked! {veh[1]} for {hours} hour(s). Total: ${total}"
+                        wa_text = f"NEW BOOKING: {veh[1]} booked by {customer} ({cust_phone}) from {start} to {end} = {hours}hrs. Total ${total}"
                         whatsapp_link = f"https://wa.me/{OWNER_PHONE}?text={wa_text.replace(' ', '%20')}"
             except Exception as e:
                 message = f"Error: {e}"
